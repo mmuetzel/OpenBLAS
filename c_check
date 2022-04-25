@@ -58,6 +58,7 @@ if ($@){
 $compiler = "";
 $compiler = LSB       if ($data =~ /COMPILER_LSB/);
 $compiler = CLANG     if ($data =~ /COMPILER_CLANG/);
+$compiler = MSVC      if ($data =~ /COMPILER_MSVC/);
 $compiler = PGI       if ($data =~ /COMPILER_PGI/);
 $compiler = PATHSCALE if ($data =~ /COMPILER_PATHSCALE/);
 $compiler = INTEL     if ($data =~ /COMPILER_INTEL/);

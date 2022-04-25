@@ -40,6 +40,10 @@ COMPILER_IBM
 COMPILER_DEC
 #endif
 
+#if defined(_MSC_VER)
+COMPILER_MSVC
+#endif
+
 #if defined(__GNUC__)
 COMPILER_GNU
 #endif
