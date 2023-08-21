@@ -169,7 +169,7 @@ jobs:
             fc-pkg: fc
             # Compiling with Flang 16 seems to cause test errors on machines
             # with AVX512 instructions. Revisit after MSYS2 distributes Flang 17.
-            no-avx512-flags: -DNO_AVX512=1
+            no-avx512-flags: -DNO_AVX512=1 -DCMAKE_Fortran_FLAGS="-flang-experimental-hlfir"
           - msystem: CLANG32
             idx: int32
             target-prefix: mingw-w64-clang-i686
@@ -187,7 +187,7 @@ jobs:
             fc-pkg: fc
             # Compiling with Flang 16 seems to cause test errors on machines
             # with AVX512 instructions. Revisit after MSYS2 distributes Flang 17.
-            no-avx512-flags: -DNO_AVX512=1
+            no-avx512-flags: -DNO_AVX512=1 -DCMAKE_Fortran_FLAGS="-flang-experimental-hlfir"
           - msystem: MINGW64
             idx: int32
             target-prefix: mingw-w64-x86_64
