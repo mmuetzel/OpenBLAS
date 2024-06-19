@@ -151,6 +151,109 @@ jobs:
           esac
 
 
+  alpine:
+    # if: "github.repository == 'OpenMathLib/OpenBLAS'"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        # Use chroot shell as default
+        shell: alpine.sh {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, x86]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        uses: jirutka/setup-alpine@v1
+        with:
+          arch: ${{ matrix.arch }}
+          packages: >
+            build-base
+            ccache
+            cmake
+            gfortran
+            util-linux-misc
+
+      - name: Print system information
+        run: lscpu
+
+      - name: Prepare ccache
+        # create key with human readable timestamp
+        # used in action/cache/restore and action/cache/save steps
+        id: ccache-prepare
+        run: |
+          echo "key=ccache-${{ runner.os }}-alpine-${{ matrix.arch }}-${{ github.ref }}-$(date +"%Y-%m-%d_%H-%M-%S")-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Restore compilation cache
+        uses: actions/cache/restore@v4
+        with:
+          # location of the ccache of the chroot in the root file system
+          path: /home/runner/rootfs/alpine-latest-${{ matrix.arch }}/home/runner/.ccache
+          key: ${{ steps.ccache-prepare.outputs.key }}
+          # Restore a matching ccache cache entry. Prefer same branch.
+          restore-keys: |
+            ccache-${{ runner.os }}-alpine-${{ matrix.arch }}-${{ github.ref }}
+            ccache-${{ runner.os }}-alpine-${{ matrix.arch }}
+
+      - name: Configure ccache
+        run: |
+          test -d ~/.ccache || mkdir ~/.ccache
+          echo "max_size = 300M" >> ~/.ccache/ccache.conf
+          echo "compression = true" >> ~/.ccache/ccache.conf
+          ccache -s
+
+      - name: Configure OpenBLAS
+        run: |
+          mkdir build && cd build
+          cmake -DDYNAMIC_ARCH=1 \
+                -DNOFORTRAN=0 \
+                -DBUILD_WITHOUT_LAPACK=0 \
+                -DCMAKE_VERBOSE_MAKEFILE=ON \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                ..
+
+      - name: Build OpenBLAS
+        run: |
+          cd build
+          cmake --build .
+
+      - name: Show ccache status
+        continue-on-error: true
+        run: ccache -s
+
+      - name: Save compilation cache
+        # Save the cache after we are done (successfully) building
+        # This helps to retain the ccache even if the subsequent steps are failing.
+        uses: actions/cache/save@v4
+        with:
+          path: /home/runner/rootfs/alpine-latest-${{ matrix.arch }}/home/runner/.ccache
+          key: ${{ steps.ccache-prepare.outputs.key }}
+
+      - name: Run tests
+        id: run-ctest
+        timeout-minutes: 60
+        run: cd build && ctest
+
+      - name: Re-run tests
+        if: always() && (steps.run-ctest.outcome == 'failure')
+        timeout-minutes: 60
+        run: |
+          cd build
+          echo "::group::Re-run ctest"
+          ctest --rerun-failed --output-on-failure || true
+          echo "::endgroup::"
+          echo "::group::Log from these tests"
+          [ ! -f Testing/Temporary/LastTest.log ] || cat Testing/Temporary/LastTest.log
+          echo "::endgroup::"
+
+
   msys2:
     if: "github.repository == 'OpenMathLib/OpenBLAS'"
     runs-on: windows-latest
